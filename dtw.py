@@ -5,6 +5,7 @@ Sources:
 Available on: https://www.youtube.com/watch?v=X6phfLqN5pY&list=PLmZlBIcArwhMJoGk5zpiRlkaHUqy5dLzL&index=3.
 """
 
+from DTW.common import use_latex
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -116,17 +117,8 @@ class DTW:
     def get_alignment_cost(self):
         return self.__alignment_cost
 
-    @staticmethod
-    def __use_latex():
-        # use LaTeX for text rendering
-        plt.rc('text', usetex=True)
-        plt.rc('font', family='serif')
-        plt.rcParams.update({
-            'text.latex.preamble': r'\usepackage[utf8]{inputenc} \usepackage[T1]{fontenc}'
-        })
-
     def plot_signals(self, x_signal=None, y_signal=None, filename=None):
-        self.__use_latex()
+        use_latex()
         x, y = self.x, self.y
         start = 0
         tx_stop = tx_num = len(x)
@@ -154,7 +146,7 @@ class DTW:
         plt.show()
 
     def plot_cost_matrix(self, x_signal=None, y_signal=None, filename=None):
-        self.__use_latex()
+        use_latex()
         plt.figure(figsize=(6, 4))
         c = plt.imshow(self.fill_matrix()[1:, 1:], cmap=plt.get_cmap("Blues"), interpolation="nearest", origin="upper")
         plt.colorbar(c)
@@ -169,7 +161,7 @@ class DTW:
         plt.show()
 
     def plot_alignment(self, x_signal=None, y_signal=None, filename=None):
-        self.__use_latex()
+        use_latex()
         x, y = self.x, self.y
         plt.figure(figsize=(6, 4))
         for x_i, y_j in self.__path[:-1]:
