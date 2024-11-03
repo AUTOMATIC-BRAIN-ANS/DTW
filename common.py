@@ -13,7 +13,6 @@ def use_latex():
         'text.latex.preamble': r'\usepackage[utf8]{inputenc} \usepackage[T1]{fontenc}'
     })
 
-
 def values_in_order(index_list):
     count = 1
     summary = []
@@ -21,7 +20,7 @@ def values_in_order(index_list):
         if index_list[i] == index_list[i - 1] + 1:
             count += 1
         else:
-            if count > 1:
+            if count >= 1:
                 last_index = index_list[i]
                 summary.append((count, last_index))
             count = 1

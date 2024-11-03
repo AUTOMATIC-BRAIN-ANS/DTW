@@ -1,8 +1,11 @@
 """
 @author: Radoslaw Plawecki
 Sources:
-[1] Herman, K. (2021). Dynamic time warping.
+[1] Kamper, H. (2021). Dynamic time warping 2: Algorithm [Video]. YouTube.
 Available on: https://www.youtube.com/watch?v=X6phfLqN5pY&list=PLmZlBIcArwhMJoGk5zpiRlkaHUqy5dLzL&index=3.
+Access: 29.10.2024.
+[2] Kamper, H. (2021). Dynamic time warping (DTW) tutorial notebook. GitHub. Available on:
+https://github.com/kamperh/lecture_dtw_notebook/blob/main/dtw.ipynb. Access: 29.10.2024.
 """
 
 from DTW.common import use_latex
@@ -12,7 +15,6 @@ import matplotlib.pyplot as plt
 
 class DTW:
     __matches, __insertions, __deletions = 0, 0, 0
-    __alignment_cost = 0
     __path = []
 
     def __init__(self, x, y):
@@ -35,8 +37,14 @@ class DTW:
                 distance = abs(x[i - 1] - y[j - 1])
                 component = np.min([matrix[i - 1][j - 1], matrix[i - 1][j], matrix[i][j - 1]])
                 matrix[i][j] = distance + component
-        self.__alignment_cost = matrix[-1, -1]
         return matrix
+
+    def calculate_alignment_cost(self, matrix):
+        x, y = self.x, self.y
+        rows, cols = x.shape[0], y.shape[0]
+        alignment_cost = matrix[rows - 1, cols - 1]
+        normalized_alignment_cost = alignment_cost / (rows + cols)
+        return alignment_cost, normalized_alignment_cost
 
     def traceback(self):
         x, y = self.x, self.y
@@ -114,8 +122,12 @@ class DTW:
     def get_stats(self):
         return self.__matches, self.__insertions, self.__deletions
 
-    def get_alignment_cost(self):
-        return self.__alignment_cost
+    def get_alignment_cost(self, normalized=None):
+        alignment_cost, normalized_alignment_cost = self.calculate_alignment_cost(self.fill_matrix())
+        if normalized is True:
+            return normalized_alignment_cost
+        else:
+            return alignment_cost
 
     def plot_signals(self, x_signal=None, y_signal=None, filename=None):
         use_latex()
