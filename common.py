@@ -13,6 +13,7 @@ def use_latex():
         'text.latex.preamble': r'\usepackage[utf8]{inputenc} \usepackage[T1]{fontenc}'
     })
 
+
 def values_in_order(index_list):
     count = 1
     summary = []

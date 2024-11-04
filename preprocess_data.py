@@ -6,7 +6,7 @@ https://medium.com/@nirajan.acharya777/understanding-outlier-removal-using-inter
 
 from DTW.common import use_latex, values_in_order
 from DTW.normalization import NormalizeData
-from DTW.nan_handler import NaNHandler as nanh
+from DTW.nan_handler import NaNHandler as NaNH
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -35,8 +35,8 @@ class PreprocessData:
         self.__check_column_existence(df=df, col=first_column)
         self.__check_column_existence(df=df, col=second_column)
         s1, s2 = df[first_column], df[second_column]
-        self.first_signal, self.second_signal = (nanh.replace_zeros_with_nans(s1),
-                                                 nanh.replace_zeros_with_nans(s2))
+        self.first_signal, self.second_signal = (NaNH.replace_zeros_with_nans(s1),
+                                                 NaNH.replace_zeros_with_nans(s2))
 
     def get_first_signal(self):
         """
@@ -84,18 +84,37 @@ class PreprocessData:
         return s
 
     def remove_outliers(self, threshold=1.5):
+        """
+        Method to remove outliers using the method iqr_outlier_removal().
+        :param threshold: threshold after which the outliers will be removed.
+        :return: signals with removed outliers.
+        """
         s1, s2 = self.get_first_signal(), self.get_second_signal()
         return self.iqr_outlier_removal(s1, threshold), self.iqr_outlier_removal(s2, threshold)
 
     def get_first_signal_outliers_removed(self):
+        """
+        Getter to get a first signal with removed outliers.
+        :return: first signal without outliers.
+        """
         return self.remove_outliers()[0]
 
-    def get_second_signal_interpolated(self):
+    def get_second_signal_outliers_removed(self):
+        """
+        Getter to get a second signal with removed outliers.
+        :return: second signal without outliers.
+        """
         return self.remove_outliers()[1]
 
     @staticmethod
     def trim_signals(s1, s2):
-        nan_in_s1, nan_in_s2 = nanh.get_nan_number(s1), nanh.get_nan_number(s2)
+        """
+        Method to find new limits of signals depending on length of gaps.
+        :param s1: first signal.
+        :param s2: second signal.
+        :return: new limits of signals.
+        """
+        nan_in_s1, nan_in_s2 = NaNH.get_nan_number(s1), NaNH.get_nan_number(s2)
         if nan_in_s1 >= nan_in_s2:
             s = pd.Series(s1)
         else:
@@ -113,9 +132,18 @@ class PreprocessData:
 
     @staticmethod
     def __fill_nans(s1, s2, method=None, order=None):
+        """
+        Method to fill NaNs in signals using a specific method of interpolation.
+        :param s1: first signal.
+        :param s2: second signal.
+        :param method: method of interpolation.
+        :param order: if a method is polynomial, then its order.
+        :return: signals with filled NaNs.
+        :raise ValueError: if a signal has too many gaps.
+        """
         ppd = PreprocessData
         start, stop = ppd.trim_signals(s1, s2)
-        s1, s2 = s1[start:stop], s2[start:stop]
+        s1, s2 = pd.Series(s1[start:stop]), pd.Series(s2[start:stop])
         s1, s2 = s1.interpolate(method=method, order=order), s2.interpolate(method=method, order=order)
         if len(s1) < 600 or len(s2) < 600:
             raise ValueError("Signal has too many gaps!")
@@ -123,44 +151,99 @@ class PreprocessData:
             return s1, s2
 
     def interpolate_signal(self, method=None, order=None):
-        s1, s2 = self.first_signal, self.second_signal
+        """
+        Method to interpolate signals using a specific method of interpolation.
+        :param method: method of interpolation.
+        :param order: if a method is polynomial, then its order.
+        :return: interpolated signals.
+        """
+        s1, s2 = self.get_first_signal_outliers_removed(), self.get_second_signal_outliers_removed()
         try:
             return self.__fill_nans(s1, s2, method=method, order=order)
         except ValueError as e:
             print(f"Error occurred: {e}")
 
     def get_first_signal_interpolated(self):
-        return self.interpolate_signal(method='quadratic')[0]
+        """
+        Getter to get a first, interpolated signal.
+        :return: first, interpolated signal.
+        """
+        return self.interpolate_signal(method='linear')[0]
 
     def get_second_signal_interpolated(self):
-        return self.interpolate_signal(method='quadratic')[1]
+        """
+        Getter to get a second, interpolated signal.
+        :return: second, interpolated signal.
+        """
+        return self.interpolate_signal(method='linear')[1]
 
-    def normalize_signal(self, method, outlier_removal=True):
-        if outlier_removal is True:
-            nd = NormalizeData(self.remove_outliers())
-        else:
-            nd = NormalizeData(self.get_signal_interpolated())
-        return nd.normalize(method=method, min_value=-1, max_value=1)
+    def normalize_signal(self, method):
+        """
+        Method to normalize signals using a specific method of normalization.
+        :param method: method of normalization.
+        :return: normalized signals.
+        """
+        s1, s2 = self.get_first_signal_interpolated(), self.get_second_signal_interpolated()
+        nd1, nd2 = NormalizeData(s1), NormalizeData(s2)
+        return (nd1.normalize(method=method, min_value=-1, max_value=1),
+                nd2.normalize(method=method, min_value=-1, max_value=1))
 
-    def get_preprocessed_signal(self):
-        return self.normalize_signal()
+    def get_first_signal_preprocessed(self):
+        """
+        Getter to get a first, preprocessed signal.
+        :return: first, preprocessed signal.
+        """
+        return self.normalize_signal(method='generalized-logistic')[0]
+
+    def get_second_signal_preprocessed(self):
+        """
+        Getter to get a second, preprocessed signal.
+        :return: second, preprocessed signal.
+        """
+        return self.normalize_signal(method='generalized-logistic')[1]
 
     @staticmethod
-    def get_time(signal):
-        return np.linspace(0, len(signal), len(signal))
+    def get_time(s):
+        """
+        Method to get time series based on a signal.
+        :param s: signal.
+        :return: time.
+        """
+        return np.linspace(0, len(s) * 10, len(s))
 
-    def get_data_for_plot(self):
-        signals = [self.signal, self.get_signal_interpolated(),
-                   self.remove_outliers(), self.normalize_signal()]
+    def get_data_for_plot(self, s=None):
+        """
+        Method to get data for a plot to compare signals on different steps of preprocessing.
+        :param s: signal.
+        :return: timeseries, signal and title for each signal.
+        """
+        if s == 'first':
+            signals = [self.get_first_signal(), self.get_first_signal_outliers_removed(),
+                       self.get_first_signal_interpolated(), self.get_first_signal_preprocessed()]
+        elif s == 'second':
+            signals = [self.get_second_signal(), self.get_second_signal_outliers_removed(),
+                       self.get_second_signal_interpolated(), self.get_second_signal_preprocessed()]
+        else:
+            raise ValueError(f"Alloweds signal are 'first' and 'second'! Got {s} instead.")
         timeseries = [self.get_time(signals[0]), self.get_time(signals[1]),
                       self.get_time(signals[2]), self.get_time(signals[3])]
-        titles = ["Sygnał nieprzetworzony", "Sygnał interpolowany",
-                  "Sygnał po usunięciu wartości odstających", "Sygnał znormalizowany"]
+        titles = ["Sygnał nieprzetworzony", "Sygnał po usunięciu wartości odstających",
+                  "Sygnał zinterpolowany", "Sygnał znormalizowany"]
         return timeseries, signals, titles
 
-    def plot_signals(self, filename=None):
+    def plot_signals(self, s=None, filename=None):
+        """
+        Method to plot a signal on different steps of preprocessing.
+        :param s: signal.
+        :param filename: name of a file with a plot.
+        :return: None, if a signal is incorrect.
+        """
         use_latex()
-        timeseries, signals, titles = self.get_data_for_plot()
+        try:
+            timeseries, signals, titles = self.get_data_for_plot(s)
+        except ValueError as e:
+            print(f"Error occurred: {e}")
+            return None
         fig, ax = plt.subplots(nrows=2, ncols=2, figsize=(14, 6))
         plt.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9, wspace=0.3, hspace=0.65)
         k = 0
@@ -170,12 +253,11 @@ class PreprocessData:
             for j in range(2):
                 ax[i, j].plot(timeseries[k], signals[k])
                 ax[i, j].set_title(titles[k], pad=label_pad, fontsize=label_fontsize + 2)
-                ax[i, j].set_xlabel("Czas [min]", labelpad=label_pad, fontsize=label_fontsize)
+                ax[i, j].set_xlabel("Czas [s]", labelpad=label_pad, fontsize=label_fontsize)
                 ax[i, j].set_ylabel("Amplituda [a.u.]", labelpad=label_pad, fontsize=label_fontsize)
-                ax[i, j].set_xlim(xmin=0, xmax=len(timeseries[k]))
+                ax[i, j].set_xlim(xmin=0, xmax=max(timeseries[k]))
                 ax[i, j].grid()
                 k += 1
-        plt.show()
         if filename is not None:
-            plt.savefig(f"{filename}.pdf", format='pdf')
+            plt.savefig(f"plots/preprocessing/{filename}.pdf", format='pdf')
         plt.show()
