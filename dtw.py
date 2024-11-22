@@ -39,12 +39,19 @@ class DTW:
                 matrix[i][j] = distance + component
         return matrix
 
-    def calculate_alignment_cost(self, matrix):
+    def calc_alignment_cost(self, matrix):
         x, y = self.x, self.y
         rows, cols = x.shape[0], y.shape[0]
         alignment_cost = matrix[rows - 1, cols - 1]
         normalized_alignment_cost = alignment_cost / (rows + cols)
         return alignment_cost, normalized_alignment_cost
+
+    def calc_alignment_cost_alternative(self):
+        filled_matrix, traceback_matrix = self.fill_matrix(), self.traceback()
+        mask = traceback_matrix == 1
+        sum_traceback = np.sum(filled_matrix[mask])
+        length = np.sum(mask)
+        return sum_traceback / length
 
     def traceback(self):
         x, y = self.x, self.y
@@ -123,7 +130,7 @@ class DTW:
         return self.__matches, self.__insertions, self.__deletions
 
     def get_alignment_cost(self, normalized=None):
-        alignment_cost, normalized_alignment_cost = self.calculate_alignment_cost(self.fill_matrix())
+        alignment_cost, normalized_alignment_cost = self.calc_alignment_cost(self.fill_matrix())
         if normalized is True:
             return normalized_alignment_cost
         else:

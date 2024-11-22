@@ -4,7 +4,7 @@ Sources:
 https://medium.com/@nirajan.acharya777/understanding-outlier-removal-using-interquartile-range-iqr-b55b9726363e
 """
 
-from DTW.common import use_latex, values_in_order
+from DTW.common import use_latex, values_in_order, filter_toxa
 from DTW.normalization import NormalizeData
 from DTW.nan_handler import NaNHandler as NaNH
 import numpy as np
@@ -14,41 +14,44 @@ from os import path
 
 
 class PreprocessData:
-    def __init__(self, filepath, first_column, second_column):
+    def __init__(self, filename, first_column, second_column):
         """
         Method to initialize params of a class.
-        :param filepath: path to a file with data.
+        :param filename: name of a file.
         :param first_column: name of a first column to analyse.
         :param second_column: name of a second column to analyse.
         :raise FileNotFoundError: if a file is not found.
         :raise IsADirectoryError: if a path exists but leads to, for example, directory instead of a file.
         :raise ValueError: if a file is not a CSV file.
         """
+        filepath = f"patients/raw/{filename}.csv"
         if not path.exists(filepath):
             raise FileNotFoundError("File not found!")
         if not path.isfile(filepath):
             raise IsADirectoryError("The path exists but is not a file!")
         if path.splitext(filepath)[1] != '.csv':
             raise ValueError("File must be a CSV file!")
+        self.filename = filename
         data = pd.read_csv(filepath, delimiter=';')
         df = pd.DataFrame(data)
         self.__check_column_existence(df=df, col=first_column)
         self.__check_column_existence(df=df, col=second_column)
-        s1, s2 = df[first_column], df[second_column]
-        self.first_signal, self.second_signal = (NaNH.replace_zeros_with_nans(s1),
-                                                 NaNH.replace_zeros_with_nans(s2))
+        self.first_column, self.second_column = first_column, second_column
+        s1, s2 = self.__assign_signals(df=df, first_column=first_column,
+                                       second_column=second_column)
+        self.first_signal, self.second_signal = s1, s2
 
     def get_first_signal(self):
         """
         Getter to get a first, initialized signal.
-        :return:
+        :return: first signal.
         """
         return self.first_signal
 
     def get_second_signal(self):
         """
         Getter to get a second, initialized signal.
-        :return: a second signal.
+        :return: second signal.
         """
         return self.second_signal
 
@@ -62,6 +65,24 @@ class PreprocessData:
         """
         if not list(df.columns).__contains__(col):
             raise KeyError(f"Column '{col}' doesn't exist in a file!")
+
+    @staticmethod
+    def __assign_signals(df, first_column, second_column):
+        """
+        Method to assign signals to variables based on the specified column names, involving looking for artefacts in
+        the STO2 signal.
+        :param df: data.
+        :param first_column: first column name.
+        :param second_column: second column name.
+        :return: signals to be assigned.
+        """
+        if second_column == 'Toxa' or second_column == 'STO2':
+            s1, s2 = df[first_column], filter_toxa(df, col_sto2='STO2', col_filtered=second_column)
+        elif first_column == 'Toxa' or first_column == 'STO2':
+            s1, s2 = df[second_column], filter_toxa(df, col_sto2='STO2', col_filtered=first_column)
+        else:
+            s1, s2 = df[first_column], df[second_column]
+        return s1, s2
 
     @staticmethod
     def iqr_outlier_removal(s, threshold):
@@ -78,7 +99,7 @@ class PreprocessData:
         upper_bound = q3 + threshold * iqr
         # copy signal to avoid modifying the original
         s = np.array(s.copy())
-        for i in range(1, len(s) - 1, 1):
+        for i in range(1, len(s)):
             if s[i] < lower_bound or s[i] > upper_bound:
                 s[i] = np.nan
         return s
@@ -261,3 +282,16 @@ class PreprocessData:
         if filename is not None:
             plt.savefig(f"plots/preprocessing/{filename}.pdf", format='pdf')
         plt.show()
+
+    def export_preprocessed_data(self, directory):
+        datetime, col1, col2 = "DateTime", self.first_column, self.second_column
+        s1, s2 = self.get_first_signal_preprocessed(), self.get_second_signal_preprocessed()
+        datetime_values = np.linspace(0, len(s1), len(s1))
+        data = {
+            datetime: datetime_values,
+            col1: s1,
+            col2: s2
+        }
+        df = pd.DataFrame(data)
+        df.to_csv(f"patients/preprocessed/{directory}/{self.filename}_PP.csv", sep=';', index=False)
+        print("Data was exported!")
