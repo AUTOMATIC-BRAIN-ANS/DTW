@@ -248,8 +248,8 @@ class PreprocessData:
             raise ValueError(f"Alloweds signal are 'first' and 'second'! Got {s} instead.")
         timeseries = [self.get_time(signals[0]), self.get_time(signals[1]),
                       self.get_time(signals[2]), self.get_time(signals[3])]
-        titles = ["Sygnał nieprzetworzony", "Sygnał po usunięciu wartości odstających",
-                  "Sygnał zinterpolowany", "Sygnał znormalizowany"]
+        titles = ["(a) Sygnał nieprzetworzony", "(b) Sygnał po usunięciu wartości odstających",
+                  "(c) Sygnał zinterpolowany", "(d) Sygnał znormalizowany"]
         return timeseries, signals, titles
 
     def plot_signals(self, s=None, filename=None):
@@ -284,6 +284,11 @@ class PreprocessData:
         plt.show()
 
     def export_preprocessed_data(self, directory):
+        """
+        Method to export preprocessed data.
+        :param directory: directory to save preprocessed data.
+        :return: None.
+        """
         datetime, col1, col2 = "DateTime", self.first_column, self.second_column
         s1, s2 = self.get_first_signal_preprocessed(), self.get_second_signal_preprocessed()
         datetime_values = np.linspace(0, len(s1), len(s1))

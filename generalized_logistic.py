@@ -67,11 +67,7 @@ class GeneralizedLogistic:
                 return np.inf
         # use a bounded optimization to find the root in a specific range
         Q0_solution = fminbound(equation, 1e-5, 10)  # bound Q0 to positive range [1e-5, 10]
-        if np.isclose(equation(Q0_solution), 0, atol=1e-6):
-            return Q0_solution
-        else:
-            print("Solution did not converge!")
-            return None
+        return Q0_solution
 
     def initialize_parameters(self):
         """
