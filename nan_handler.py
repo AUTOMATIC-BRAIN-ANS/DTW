@@ -32,7 +32,3 @@ class NaNHandler:
         :return: number of nans in a signal.
         """
         return pd.DataFrame(s).isna().sum().sum()
-
-
-
-

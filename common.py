@@ -8,7 +8,7 @@ import numpy as np
 
 def use_latex():
     """
-    Method to use LaTeX formatting for plots.
+    Function to use LaTeX formatting for plots.
     """
     # use LaTeX for text rendering
     plt.rc('text', usetex=True)
@@ -18,9 +18,20 @@ def use_latex():
     })
 
 
+def check_column_existence(df, col):
+    """
+    Function to check if a column with the given name exists in a file.
+    :param df: data as DataFrame object.
+    :param col: name of a column to look for.
+    :raise KeyError: if a column doesn't exist in a file.
+    """
+    if not list(df.columns).__contains__(col):
+        raise KeyError(f"Column '{col}' doesn't exist in a file!")
+
+
 def values_in_order(index_list):
     """
-    Method to replace the list of rowed indices into an array of tuples (A, B), where A is the number in sequence
+    Function to replace the list of rowed indices into an array of tuples (A, B), where A is the number in sequence
     occurring indices, and B is the first element of the given sequence.
     :param index_list: list of rowed indices.
     :return: array of tuples.
@@ -38,9 +49,20 @@ def values_in_order(index_list):
     return list(reversed(summary))
 
 
+def make_blocks(s):
+    """
+    Function to make divide a signal into blocks.
+    :param s: signal.
+    :return: signal divided into blocks.
+    """
+    one_day = 24 * 60 * 60 // 10
+    s = [s[0:one_day], s[one_day:one_day * 2], s[one_day * 2:]]
+    return s
+
+
 def filter_toxa(df, col_sto2, col_filtered, min_value=20, max_value=100):
     """
-    The function to clear the TOXA signal from artefacts (when STO2 < 20 or STO2 > 100).
+    Function to clear the TOXA signal from artefacts (when STO2 < 20 or STO2 > 100).
     :param df: data in the DataFrame format.
     :param col_sto2: column with values of the STO2 signal.
     :param col_filtered: column to be filtered with values of the STO2/TOXA signal.

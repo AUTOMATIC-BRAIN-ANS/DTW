@@ -4,7 +4,7 @@ Sources:
 https://medium.com/@nirajan.acharya777/understanding-outlier-removal-using-interquartile-range-iqr-b55b9726363e
 """
 
-from DTW.common import use_latex, values_in_order, filter_toxa
+from DTW.common import use_latex, values_in_order, filter_toxa, check_column_existence
 from DTW.normalization import NormalizeData
 from DTW.nan_handler import NaNHandler as NaNH
 import numpy as np
@@ -34,8 +34,8 @@ class PreprocessData:
         self.filename = filename
         data = pd.read_csv(filepath, delimiter=';')
         df = pd.DataFrame(data)
-        self.__check_column_existence(df=df, col=first_column)
-        self.__check_column_existence(df=df, col=second_column)
+        check_column_existence(df=df, col=first_column)
+        check_column_existence(df=df, col=second_column)
         self.first_column, self.second_column = first_column, second_column
         s1, s2 = self.__assign_signals(df=df, first_column=first_column,
                                        second_column=second_column)
@@ -54,17 +54,6 @@ class PreprocessData:
         :return: second signal.
         """
         return self.second_signal
-
-    @staticmethod
-    def __check_column_existence(df, col):
-        """
-        Method to check if a column with the given name exists in a file.
-        :param df: data as DataFrame object.
-        :param col: name of a column to look for.
-        :raise KeyError: if a column doesn't exist in a file.
-        """
-        if not list(df.columns).__contains__(col):
-            raise KeyError(f"Column '{col}' doesn't exist in a file!")
 
     @staticmethod
     def __assign_signals(df, first_column, second_column):

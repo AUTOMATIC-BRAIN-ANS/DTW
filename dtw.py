@@ -14,14 +14,24 @@ import matplotlib.pyplot as plt
 
 
 class DTW:
+    __cost_matrix = []
     __matches, __insertions, __deletions = 0, 0, 0
     __path = []
 
     def __init__(self, x, y):
+        """
+        Method to initialize params of a class.
+        :param x: first signal.
+        :param y: second signal.
+        """
         self.x = np.array(x)
         self.y = np.array(y)
 
-    def __initialise_matrix(self):
+    def __initialize_matrix(self):
+        """
+        Method to initialize a matrix.
+        :return: initialized matrix.
+        """
         x, y = self.x, self.y
         rows, cols = len(x) + 1, len(y) + 1
         matrix = np.zeros([rows, cols])
@@ -29,8 +39,12 @@ class DTW:
         return matrix
 
     def fill_matrix(self):
+        """
+        Method to fill a matrix.
+        :return: filled matrix.
+        """
         x, y = self.x, self.y
-        matrix = self.__initialise_matrix()
+        matrix = self.__initialize_matrix()
         rows, cols = np.shape(matrix)
         for i in range(1, rows):
             for j in range(1, cols):
@@ -39,30 +53,33 @@ class DTW:
                 matrix[i][j] = distance + component
         return matrix
 
-    def calc_alignment_cost(self, matrix):
-        x, y = self.x, self.y
-        rows, cols = x.shape[0], y.shape[0]
-        alignment_cost = matrix[rows - 1, cols - 1]
-        normalized_alignment_cost = alignment_cost / (rows + cols)
-        return alignment_cost, normalized_alignment_cost
-
-    def calc_alignment_cost_alternative(self):
-        filled_matrix, traceback_matrix = self.fill_matrix(), self.traceback()
-        mask = traceback_matrix == 1
-        sum_traceback = np.sum(filled_matrix[mask])
-        length = np.sum(mask)
-        return sum_traceback / length
+    def __init_global_variables(self, i, j):
+        """
+        Method to initialize global variables.
+        :param i: number of rows in a matrix.
+        :param j: number of columns in a matrix.
+        :return: initialized global variables.
+        """
+        self.__cost_matrix = self.fill_matrix()
+        self.__matches, self.__insertions, self.__deletions = 0, 0, 0
+        self.__path = [(i - 1, j - 1)]
 
     def traceback(self):
+        """
+        Method get traceback matrix.
+        :return: traceback matrix.
+        """
         x, y = self.x, self.y
         i, j = rows, cols = len(x), len(y)
+        self.__init_global_variables(i, j)
         traceback_matrix = np.zeros([rows + 1, cols + 1])
-        self.__path = [(i - 1, j - 1)]
-        matrix = self.fill_matrix()
+        cost_matrix = self.__cost_matrix
         while i > 0 and j > 0:
-            score = matrix[i][j]
+            score = cost_matrix[i][j]
             distance = abs(x[i - 1] - y[j - 1])
-            match, insertion, deletion = [matrix[i - 1][j - 1], matrix[i - 1][j], matrix[i][j - 1]]
+            match, insertion, deletion = [cost_matrix[i - 1][j - 1],
+                                          cost_matrix[i - 1][j],
+                                          cost_matrix[i][j - 1]]
             if score == distance + match:
                 traceback_matrix[i][j] = 1
                 self.__matches += 1
@@ -78,6 +95,59 @@ class DTW:
                 j -= 1
             self.__path.append((i - 1, j - 1))
         return traceback_matrix
+
+    def get_statistics(self):
+        """
+        Method to get statistics of DTW.
+        :return: number of matches, insertions and deletions.
+        """
+        self.traceback()
+        return self.__matches, self.__insertions, self.__deletions
+
+    def calc_alignment_cost(self, method):
+        """
+        Method to calculate alignment cost using a given method.
+        :param method: method to calculate alignment cost.
+        :return: alignment cost.
+        """
+        if method == "d-method":
+            return self.__use_distance_method()
+        elif method == "td-method":
+            return self.__use_time_distance_method()
+        elif method == "c-method":
+            return self.__use_cost_method()
+        else:
+            raise ValueError(f"Allowed methods to calculate alignment cost are: 'd-method', 'td-method' and "
+                             f"'c-method'. Got '{method}' instead.")
+
+    def __use_distance_method(self):
+        """
+        Method to calculate alignment cost using the distance method.
+        :return: alignment cost.
+        """
+        matrix = self.fill_matrix()[1:, 1:]
+        n, m = np.shape(matrix)
+        return matrix[n - 1][m - 1] / (n + m)
+
+    def __use_time_distance_method(self):
+        """
+        Method to calculate alignment cost using the time-distance method.
+        :return: alignment cost.
+        """
+        self.traceback()
+        matrix = self.__cost_matrix[1:, 1:]
+        cost = sum(matrix[n, m] for n, m in self.__path[:-1])
+        len_traceback = len(self.__path[:-1])
+        return cost / len_traceback
+
+    def __use_cost_method(self):
+        """
+        Method to calculate alignment cost using the cost method.
+        :return: alignment cost.
+        """
+        matches, insertions, deletions = self.get_statistics()
+        len_traceback = matches + insertions + deletions
+        return matches / len_traceback
 
     def __sliding_window_dtw(self, window_size, step):
         if window_size < 5:
@@ -125,16 +195,6 @@ class DTW:
             return self.__get_min_alignment_cost(window_size, step)
         else:
             return self.__get_max_alignment_cost(window_size, step)
-
-    def get_stats(self):
-        return self.__matches, self.__insertions, self.__deletions
-
-    def get_alignment_cost(self, normalized=None):
-        alignment_cost, normalized_alignment_cost = self.calc_alignment_cost(self.fill_matrix())
-        if normalized is True:
-            return normalized_alignment_cost
-        else:
-            return alignment_cost
 
     def plot_signals(self, x_signal=None, y_signal=None, filename=None):
         use_latex()
