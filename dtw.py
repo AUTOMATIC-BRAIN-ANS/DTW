@@ -147,9 +147,16 @@ class DTW:
         """
         matches, insertions, deletions = self.get_statistics()
         len_traceback = matches + insertions + deletions
-        return matches / len_traceback
+        return (insertions + deletions) / len_traceback
 
-    def __sliding_window_dtw(self, window_size, step):
+    def __sliding_window_dtw(self, window_size, step, method):
+        """
+        Method to implement DTW with sliding window.
+        :param window_size: size of a window.
+        :param step: step between windows.
+        :param method: method to calculate alignment cost.
+        :return: list with alignment costs per window and the list with analyzed windows.
+        """
         if window_size < 5:
             raise ValueError("Window is not big enough!")
         if step <= 0:
@@ -159,47 +166,129 @@ class DTW:
         alignment_costs = []
         for i in range(0, max(len(x), len(y)) - window_size + 1, step):
             window = [i, window_size + i]
-            alignment_cost = DTW(x[window[0]:window[1]], y[window[0]:window[1]]).fill_matrix()[-1, -1]
+            dtw = DTW(x[window[0]:window[1]], y[window[0]:window[1]])
+            alignment_cost = dtw.calc_alignment_cost(method=method)
             windows.append(window)
             alignment_costs.append(alignment_cost)
         return alignment_costs, windows
 
-    def __perform_dtw_window(self, windows, pos):
+    def __perform_dtw_window(self, windows, pos, filename=None):
+        """
+        Method to perform DTW on a specific window.
+        :param windows: list of analyzed windows.
+        :param pos: index of a specific window from the list.
+        :param filename: name of a file to save plots.
+        """
         dtw = DTW(self.x[windows[pos][0]:windows[pos][1]], self.y[windows[pos][0]:windows[pos][1]])
         dtw.traceback()
-        dtw.plot_signals()
-        dtw.plot_alignment()
-        dtw.plot_cost_matrix()
+        dtw.__make_plots(x_signal='x', y_signal='y', filename=filename)
 
-    def __get_min_alignment_cost(self, window_size, step):
-        alignment_costs, windows = self.__sliding_window_dtw(window_size, step)
-        min_alignment_cost = np.min(alignment_costs)
-        min_positions = np.where(alignment_costs == min_alignment_cost)[0]
-        for position in min_positions:
-            self.__perform_dtw_window(windows, position)
-        return min_alignment_cost
+    def __get_min_max_alignment_cost(self, min_max, window_size, step, method):
+        """
+        Method to get minimum or maximum alignment cost from a list.
+        :param min_max: MIN/MAX, whether to look for minimum or maximum value.
+        :param window_size: size of a window.
+        :param step: step between windows.
+        :param method: method to calculate alignment cost.
+        :return: list with alignment costs per window and the list with analyzed windows, and position of a window with
+                 minimum or maximum alignment cost.
+        """
+        alignment_costs, windows = self.__sliding_window_dtw(window_size, step, method)
+        alignment_cost = 0
+        if min_max == "MIN":
+            alignment_cost = np.min(alignment_costs)
+        elif min_max == "MAX":
+            alignment_cost = np.max(alignment_costs)
+        return alignment_cost, windows, np.where(alignment_costs == alignment_cost)[0]
 
-    def __get_max_alignment_cost(self, window_size, step):
-        alignment_costs, windows = self.__sliding_window_dtw(window_size, step)
-        max_alignment_cost = np.max(alignment_costs)
-        max_positions = np.where(alignment_costs == max_alignment_cost)[0]
-        for position in max_positions:
-            self.__perform_dtw_window(windows, position)
-        return max_alignment_cost
+    def __get_min_alignment_cost(self, window_size, step, method, filename=None):
+        """
+        Method to get minimum alignment cost together with the plots.
+        :param window_size: size of a window.
+        :param step: step between windows.
+        :param method: method to calculate alignment cost.
+        :param filename: name of a file to save plots.
+        :return: minimum alignment cost.
+        """
+        alignment_cost, windows, positions = self.__get_min_max_alignment_cost(min_max="MIN", window_size=window_size,
+                                                                               step=step, method=method)
+        for position in positions:
+            self.__perform_dtw_window(windows, position, filename)
+        return alignment_cost
 
-    def find_min_max_alignment_cost(self, look_for=None, window_size=10, step=1):
-        if look_for != "MIN" and look_for != "MAX":
-            raise ValueError("Type 'MIN' or 'MAX' to look for the window with the smallest and the biggest alignment "
-                             "cost, relatively.")
-        if look_for == "MIN":
-            return self.__get_min_alignment_cost(window_size, step)
+    def __get_max_alignment_cost(self, window_size, step, method, filename=None):
+        """
+        Method to get maximum alignment cost together with the plots.
+        :param window_size: size of a window.
+        :param step: step between windows.
+        :param method: method to calculate alignment cost.
+        :param filename: name of a file to save plots.
+        :return: maximum alignment cost.
+        """
+        alignment_cost, windows, positions = self.__get_min_max_alignment_cost(min_max="MAX", window_size=window_size,
+                                                                               step=step, method=method)
+        for position in positions:
+            self.__perform_dtw_window(windows, position, filename)
+        return alignment_cost
+
+    def __get_mean_alignment_cost(self, window_size, step, method):
+        """
+        Method to get mean alignment cost.
+        :param window_size: size of a window.
+        :param step: step between windows.
+        :param method: method to calculate alignment cost.
+        :return: mean alignment cost.
+        """
+        alignment_costs, windows = self.__sliding_window_dtw(window_size, step, method)
+        return np.mean(alignment_costs)
+
+    def find_alignment_cost(self, method, look_for, window_size=10, step=1, filename=None):
+        """
+        Method to find minimum, maximum or mean alignment cost.
+        :param method: method to calculate alignment cost.
+        :param look_for: value to look for (MIN/MAX/MEAN).
+        :param window_size: size of a window.
+        :param step: step between windows.
+        :param filename: name of a file to save plots.
+        :return: minimum, maximum or mean alignment cost.
+        :raise ValueError: if value for look_for is not an expected one.
+        """
+        if look_for == "MEAN":
+            return self.__get_mean_alignment_cost(window_size, step, method)
+        elif look_for == "MIN":
+            return self.__get_min_alignment_cost(window_size, step, method, filename)
+        elif look_for == "MAX":
+            return self.__get_max_alignment_cost(window_size, step, method, filename)
         else:
-            return self.__get_max_alignment_cost(window_size, step)
+            raise ValueError(f"Allowed statistics are 'MIN', 'MAX' and 'MEAN'! Got {look_for} instead.")
+
+    def __make_plots(self, x_signal=None, y_signal=None, filename=None):
+        """
+        Method to make plots visualizing the results.
+        :param x_signal: label for the x-signal.
+        :param y_signal: label for the y-signal.
+        :param filename: name of a file to save plots.
+        """
+        if filename is None:
+            self.plot_signals(x_signal=x_signal, y_signal=y_signal)
+            self.plot_alignment()
+            self.plot_cost_matrix(x_signal=x_signal, y_signal=y_signal)
+        else:
+            self.plot_signals(x_signal=x_signal, y_signal=y_signal, filename=f"s_{filename}")
+            self.plot_alignment(filename=f"d_{filename}")
+            self.plot_cost_matrix(x_signal=x_signal, y_signal=y_signal, filename=f"m_{filename}")
 
     def plot_signals(self, x_signal=None, y_signal=None, filename=None):
+        """
+        Method to plot signals in the 1x2 grid.
+        :param x_signal: label for the x-signal.
+        :param y_signal: label for the y-signal.
+        :param filename: name of a file to save a plot.
+        """
         use_latex()
         x, y = self.x, self.y
         start = 0
+        label_pad = 8
         tx_stop = tx_num = len(x)
         ty_stop = ty_num = len(y)
         tx = np.linspace(start=start, stop=tx_stop, num=tx_num)
@@ -209,15 +298,15 @@ class DTW:
         ax[0].plot(tx, x)
         ax[1].plot(ty, y)
         # add a title and labels to the 1st plot
-        ax[0].set_xlabel("Czas [s]")
-        ax[0].set_ylabel(f"{x_signal}")
-        ax[0].set_title(f"Zależność {x_signal} od czasu")
+        ax[0].set_xlabel("$t$ [s]")
+        ax[0].set_ylabel(f"${x_signal}$ [a.u.]", labelpad=label_pad)
+        ax[0].set_title(f"Zależność ${x_signal}(t)$", )
         ax[0].set_xlim(xmin=0, xmax=tx_stop)
         ax[0].grid()
         # add a title and labels to the 2nd plot
-        ax[1].set_xlabel("Czas [s]")
-        ax[1].set_ylabel(f"{y_signal}")
-        ax[1].set_title(f"Zależność {y_signal} od czasu")
+        ax[1].set_xlabel("$t$ [s]", labelpad=label_pad)
+        ax[1].set_ylabel(f"${y_signal}$ [a.u.]", labelpad=label_pad)
+        ax[1].set_title(f"Zależność ${y_signal}(t)$")
         ax[1].set_xlim(xmin=0, xmax=ty_stop)
         ax[1].grid()
         if filename is not None:
@@ -225,30 +314,37 @@ class DTW:
         plt.show()
 
     def plot_cost_matrix(self, x_signal=None, y_signal=None, filename=None):
+        """
+        Method to plot a cost matrix.
+        :param x_signal: label for the x-signal.
+        :param y_signal: label for the y-signal.
+        :param filename: name of a file to save a plot.
+        """
         use_latex()
-        plt.figure(figsize=(6, 4))
+        label_pad = 8
         c = plt.imshow(self.fill_matrix()[1:, 1:], cmap=plt.get_cmap("Blues"), interpolation="nearest", origin="upper")
         plt.colorbar(c)
         x_path, y_path = zip(*self.__path[:-1])
         plt.plot(y_path, x_path, color="#003A7D", linewidth=1.5)
         plt.title("Macierz kosztów")
-        plt.xlabel(f"{x_signal}")
-        plt.ylabel(f"{y_signal}")
-        plt.legend(['Dopasowanie'])
+        plt.xlabel(f"${x_signal}(t)$", labelpad=label_pad)
+        plt.ylabel(f"${y_signal}(t)$", labelpad=label_pad)
+        plt.legend(['Ścieżka dopasowania'])
         if filename is not None:
             plt.savefig(f"{filename}.pdf", format='pdf')
         plt.show()
 
-    def plot_alignment(self, x_signal=None, y_signal=None, filename=None):
+    def plot_alignment(self, filename=None):
+        """
+        Method to plot signals with alignment.
+        :param filename: name of a file to save a plot.
+        """
         use_latex()
         x, y = self.x, self.y
-        plt.figure(figsize=(6, 4))
         for x_i, y_j in self.__path[:-1]:
             plt.plot([x_i, y_j], [x[x_i] + 1.5, y[y_j] - 1.5], c="C7")
         plt.plot(np.arange(x.shape[0]), x + 1.5, "-o", c="C3")
         plt.plot(np.arange(y.shape[0]), y - 1.5, "-o", c="C0")
-        plt.xlabel(f"{x_signal}")
-        plt.ylabel(f"{y_signal}")
         plt.axis("off")
         if filename is not None:
             plt.savefig(f"{filename}.pdf", format='pdf')

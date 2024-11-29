@@ -55,7 +55,8 @@ def make_blocks(s):
     :param s: signal.
     :return: signal divided into blocks.
     """
-    one_day = 24 * 60 * 60 // 10
+    # one_day = 24 * 60 * 60 // 10
+    one_day = 4
     s = [s[0:one_day], s[one_day:one_day * 2], s[one_day * 2:]]
     return s
 
